@@ -1,5 +1,5 @@
 # VT220 Character Set Editor
-
+<img src="https://raw.githubusercontent.com/nerdprojects/vt220-characterset-editor/main/screenshot.jpg">
 ## Info
 This is a HTML/JS/PHP application, that allows to define a custom character sets on a DEC VT220 terminal. This allows to create custom fonts or simple grahics.
 
