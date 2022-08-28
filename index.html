@@ -1,0 +1,403 @@
+<html>
+<head>
+	<script src="./js/jquery-2.1.4.js"></script>
+	<script>
+	
+		// Character Set Table, avalilable chars:
+		var availableChars = "!\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+	
+		$(function(){
+			
+			var characterSetTableHtml = "<table>";
+			var characterSetRowHtml = "";
+			for(i=0; i<8; i++){
+				characterSetRowHtml += "<td></td>";
+			}
+			for(i=0; i<10; i++){
+				characterSetTableHtml += "<tr>"+characterSetRowHtml+"</tr>";
+			}
+			characterSetTableHtml += "</table>";
+			
+			var characterSetTable = $(characterSetTableHtml);
+			for(i=0; i<94; i++){
+				$("#characterSet").append($(characterSetTableHtml));
+			}
+			
+			// Screen Layout Table
+			screenLayoutTableHtml = "<table>";
+			var screenLayoutRowHtml = "";
+			for(i=0; i<80; i++){
+				screenLayoutRowHtml += "<td></td>";
+			}
+			for(i=0; i<24; i++){
+				screenLayoutTableHtml += "<tr>"+screenLayoutRowHtml+"</tr>";
+			}
+			screenLayoutTableHtml += "</table>";
+			$("#screenLayout").append($(screenLayoutTableHtml));
+			
+			var isMouseDown = false
+			var draw = true; 
+
+		    $('body').mousedown(function() {
+		        isMouseDown = true;
+		    })
+		    .mouseup(function() {
+		        isMouseDown = false;
+		    });
+			// prevent context menu
+			$('body').bind("contextmenu",function(e){
+			   return false;
+			});
+						
+			$("#characterSet td").mouseenter(function(event){
+				if(isMouseDown && event.which == 1){
+					if(draw){
+						$(event.target).attr("class","active");
+					}else{
+						$(event.target).attr("class","");
+					}
+				}
+			});
+			
+			$("#characterSet td").mousedown(function(event){
+				event.preventDefault();
+				if(event.which == 1){
+					if($(event.target).attr("class") != "active"){
+						draw = true;
+						$(event.target).attr("class","active");
+					}else{
+						draw = false;
+						$(event.target).attr("class","");
+					}
+				}else if(event.which == 3){
+					$("#characterSet table").removeClass("selected");
+					$(event.target).parents("table").first().addClass("selected");
+				}
+			});
+			
+			$("#characterSet td").mouseup(function(event){
+				
+				updateBitmapTextarea();
+				previewTerminal();
+				
+			});
+			
+			$("#screenLayout td").mousedown(function(event){
+				
+				if(event.which == 1){
+					var number = $("#characterSet table.selected").index();
+					$(event.target).html(number);
+				}else if(event.which == 3){
+					$(event.target).html("");
+				}
+				updateLayoutTextarea();
+				previewTerminal();
+			});
+			
+			$("#clear").click(function(){
+				console.log("clear");
+				clearTable();
+				updateBitmapTextarea();
+				previewTerminal();
+			})
+			
+			$("#testCharset").click(function(){
+				$.post("terminal.php", { "do": "testCharset"}, function(data){
+					console.log("response was: "+data)
+				} );
+			});
+			
+			$("#resetTerminal").click(function(){
+				$.post("terminal.php", { "do": "resetTerminal"}, function(data){
+					console.log("response was: "+data)
+				} );
+			});
+			$("#setAsciiCharset").click(function(){
+				$.post("terminal.php", { "do": "setAsciiCharset"}, function(data){
+					console.log("response was: "+data)
+				} );
+			});
+			$("#setCustomCharset").click(function(){
+				$.post("terminal.php", { "do": "setCustomCharset"}, function(data){
+					console.log("response was: "+data)
+				} );
+			});
+			$("#loadBitmap").click(function(){
+				loadBitmap();
+			});
+			$("#sendData").click(function(){
+				var data = $("#loadLayoutTextarea").val();
+				$.post("terminal.php", { "do": "sendData", "data": data}, function(data){
+					console.log("response was: "+data)
+				} );
+			});
+			$("#sendDrawData").click(function(){
+				sendDrawData();
+			});
+			$("#loadLayout").click(function(){
+				loadLayout();
+			});
+			
+			loadBitmap();
+			loadLayout();
+		});
+		
+		
+		function loadBitmap(){
+			var values = $("#loadBitmapTextarea").val();
+			var collection = $("#characterSet td");
+			for(i=0; i < values.length; i++){
+				if(values.charAt(i) == "0"){
+					collection.eq(i).attr("class","");
+				}else{
+					collection.eq(i).attr("class","active");
+				}
+			}
+			previewTerminal();
+		}
+		function loadLayout(){
+			var values = $("#loadLayoutTextarea").val().replace(/\n/g,"");;
+			var collection = $("#screenLayout td");
+			$("#screenLayout td").html("");
+			for(i=0; i < values.length; i++){
+				if(availableChars.indexOf(values[i]) != -1){
+					collection.eq(i).html(availableChars.indexOf(values[i]));
+				}
+			}
+			previewTerminal();
+		}
+		
+		function updateBitmapTextarea(){
+			var charData = "";
+			
+			$("#characterSet table").each(function(i,table){
+				
+				$(table).find("td").each(function(j,td){
+				
+					if($(td).attr("class") != "active"){
+						charData += "0";
+					}else{
+						charData += "1";
+					}
+
+				});
+				
+			});
+			$("#loadBitmapTextarea").val(charData);
+		}
+		function updateLayoutTextarea(){
+			var charData = "";
+			$("#screenLayout td").each(function(i,td){
+				if(i > 0 && i%80 == 0){
+					charData += "\n";
+				}
+				var number = parseInt($(td).html());
+				if(isNaN(number)){
+					charData += " ";
+				}else{
+					charData += availableChars.charAt(number);
+				}
+				
+			});
+			$("#loadLayoutTextarea").val(charData);
+		}
+		
+		function clearTable(){
+			$("td").each(function(i,obj){
+				$(obj).attr("class","");
+			});
+		}
+		
+		function sendDrawData(){
+			
+			var charData = "";
+			
+			$("#characterSet table").each(function(i,table){
+				
+				$(table).find("td").each(function(j,td){
+				
+					if($(td).attr("class") != "active"){
+						charData += "0";
+					}else{
+						charData += "1";
+					}
+
+				});
+				
+			});
+			
+			$.post("terminal.php", { "do": "defineCharset", "data": charData }, function(data){
+				console.log("response was: "+data)
+			});
+		}
+		
+		function previewTerminal(){
+			var canvas = document.getElementById("terminalPreview");
+			var ctx = canvas.getContext("2d");
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
+			ctx.strokeStyle = "#ff8a00";
+			ctx.lineWidth = 1;
+			$("#screenLayout td").each(function(i,screenLayoutTd){
+				if(isNaN(parseInt($(screenLayoutTd).html()))){
+					
+				}else{
+					//console.log(i+" -> id="+$(screenLayoutTd).html());
+					var row = Math.floor(i/80);
+					var xPos = (i-row*80)*10 + 0.5; // add 0.5 because of http://stackoverflow.com/questions/9311428/draw-single-pixel-line-in-html5-canvas
+					var yPos = row*20 + 0.5;
+					
+					$("#characterSet table:eq("+$(screenLayoutTd).html()+") td").each(function(j,characterTd){
+						if($(characterTd).attr("class") == "active"){
+							
+							var charRow = Math.floor(j/8);
+							var xCharPos = j-charRow*8;
+							var yCharPos = charRow*2;
+							
+							//console.log("char id "+$(screenLayoutTd).html()+" ->   pos "+(xPos+xCharPos)+" "+(yPos+yCharPos));
+							
+							ctx.beginPath()
+							ctx.moveTo(xPos+xCharPos,yPos+yCharPos);
+							if(xCharPos != 0 && xCharPos % 7 == 0){
+								ctx.lineTo(xPos+xCharPos+3,yPos+yCharPos);
+							}else{
+								ctx.lineTo(xPos+xCharPos+1,yPos+yCharPos);
+							}
+							ctx.stroke();
+						}else{
+							
+						}
+					});
+				}
+			});
+		}
+		
+	</script>
+<style>
+body{
+	font-size:14px;
+	font-family:"Helevtica Neue",sans-serif;
+	line-height:20px;
+	background:#ccc;
+	color:#000000;
+	margin:90px 20px;
+}
+#characterSet{
+	width:600px;
+	float:left;
+}
+#characterSet table{
+	border-spacing:1px 1px;
+	float:left;
+	margin:2px;
+	width:70px;
+}
+#characterSet table.selected{
+	outline:1px solid #ff8a00;
+}
+#characterSet td{
+	margin:0;
+	padding:0;
+	height:10px;
+	background-color:#fff;
+}
+#characterSet td:nth-child(8){
+	background-color:#efefef;
+}
+#characterSet td.active{
+	background-color:#000;
+}
+#screenLayout{
+	float:left;
+}
+#screenLayout table{
+	border-spacing:1px 1px;
+	float:left;
+	margin:2px;
+	user-select: none;
+}
+#screenLayout td{
+	margin:0;
+	padding:0;
+	width:10px;
+	height:15px;
+	background-color:#fff;
+	font-size: 7px;
+	text-align: center;
+	vertical-align: middle;
+}
+#terminalPreview{
+	border:20px solid #000;
+	margin: 22px 0px 0px 2px;
+	filter: blur(0.1px) brightness(3);
+	transform: scaleX(0.96);
+}
+#buttonContainer{
+	position:absolute;
+	top:0;
+	left:0;
+	user-select: none;
+	background-color:rgba(0,0,0,0.7);
+	padding: 6px 10px 10px 32px;
+}
+.button{
+	cursor:pointer;
+	color:#fff;
+	margin-right: 40px;
+	display:inline-block;
+	user-select: none;
+}
+.button:hover{
+	text-shadow: 0px 0px 5px rgba(255,255,255,0.7);
+}
+textarea{
+	font-size:6px;
+	border:0;
+	position:relative;
+	left:-10px;
+	top:3px;
+}
+</style>
+</head>
+<body>
+	<div id="buttonContainer">
+		<div class="button" id="sendDrawData">Send Custom Character Set</div>
+		<span class="button" id="sendData">Send Screen Layout</span>
+		<div class="button" id="setCustomCharset">Switch To Custom Character Mode</div>
+		<div class="button" id="setAsciiCharset">Switch To ASCII Mode</div>
+		<div class="button" id="testCharset">Show Charset</div>
+		<div class="button" id="resetTerminal">Reset Terminal</div>
+		<br>
+		<textarea id="loadBitmapTextarea">00000000000100000001000000010000000100000001000000000000000100000000000000000000000000000100100001001000010010000000000000000000000000000000000000000000000000000000000001001000010010001111110001001000111111000100100001001000000000000000000000000000000100000111110010010000011111000001001001111100000100000000000000000000000000000100001010100100010010000001000000100100010010101000010000000000000000000000000001110000100010001000100001110000100010101000010001111010000000000000000000000000000110000001000000100000000000000000000000000000000000000000000000000000000000000000100000010000001000000010000000100000001000000001000000001000000000000000000000100000000100000000100000001000000010000000100000010000001000000000000000000000000000000100010000101000111111100010100001000100000000000000000000000000000000000000000000010000000100001111111000010000000100000000000000000000000000000000000000000000000000000000000000000000000000000011000000100000010000000000000000000000000000000000000000000000111111100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001100000011000000000000000000000000000000000010000001000000100000010000001000000100000010000000000000000000000000000000001110000100010010000010100000101000001001000100001110000000000000000000000000000001000000110000010100000001000000010000000100000111110000000000000000000000000001111100100000100000001000011100011000001000000011111110000000000000000000000000111111100000010000001000000111000000001010000010011111000000000000000000000000000000100000011000001010000100100011111110000010000000100000000000000000000000000011111110100000001011110011000010000000101000001001111100000000000000000000000000001111000100000010000000101111001100001010000010011111000000000000000000000000001111111000000010000001000000100000010000001000000010000000000000000000000000000001111100100000101000001001111100100000101000001001111100000000000000000000000000011111001000001010000110011110100000001000000100011110000000000000000000000000000000000000110000001100000000000000000000001100000011000000000000000000000000000000000000001100000011000000000000000000000011000000100000010000000000000000000000000000100000100000100000100000000010000000001000000000100000000000000000000000000000000000000000111111100000000011111110000000000000000000000000000000000000000010000000001000000000100000000010000010000010000010000000000000000000000000000000011111001000001000001100000100000001000000000000000100000000000000000000000000000111110010000010100111101010011010011010100000000111110000000000000000000000000000010000001010000100010010000010111111101000001010000010000000000000000000000000111111000100001001000010011111000100001001000010111111000000000000000000000000000011110001000010100000001000000010000000010000100011110000000000000000000000000011111000010001000100001001000010010000100100010011111000000000000000000000000000111111101000000010000000111110001000000010000000111111100000000000000000000000001111111010000000100000001111100010000000100000001000000000000000000000000000000000111100010000101000000010000000100011100100001000111100000000000000000000000000100000101000001010000010111111101000001010000010100000100000000000000000000000000111110000010000000100000001000000010000000100000111110000000000000000000000000000001110000001000000010000000100000001001000010001111000000000000000000000000000100000101000110010110000110000001011000010001100100000100000000000000000000000001000000010000000100000001000000010000000100000001111111000000000000000000000000010000010110001101010101010010010100000101000001010000010000000000000000000000000100000101100001010100010100100101000101010000110100000100000000000000000000000000111110010000010100000101000001010000010100000100111110000000000000000000000000011111100100000101000001011111100100000001000000010000000000000000000000000000000011111001000001010000010100000101000101010000100011110100000000000000000000000001111110010000010100000101111110010001000100001001000001000000000000000000000000001111100100000101000000001111100000000101000001001111100000000000000000000000000111111100001000000010000000100000001000000010000000100000000000000000000000000001000001010000010100000101000001010000010100000100111110000000000000000000000000010000010100000100100010001000100001010000010100000010000000000000000000000000000100000101000001010000010100000101001001010101010010001000000000000000000000000001000001001000100001010000001000000101000010001001000001000000000000000000000000010000010010001000010100000010000000100000001000000010000000000000000000000000000111111100000010000001000000100000010000001000000111111100000000000000000000000000011110000100000001000000010000000100000001000000011110000000000000000000000000010000000010000000010000000010000000010000000010000000010000000000000000000000000011110000000100000001000000010000000100000001000011110000000000000000000000000000001000000101000010001001000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000011111110000000000000000000000000011000000010000000010000000000000000000000000000000000000000000000000000000000000000000000000000011111000000001001111110100001100111101000000000000000000000000010000000100000001011110011000010100000101100001010111100000000000000000000000000000000000000000001111100100000101000000010000000011111100000000000000000000000000000001000000010011110101000011010000010100001100111101000000000000000000000000000000000000000000111110010000010111111101000000001111100000000000000000000000000000111000010001000100000111110000010000000100000001000000000000000000000000000000000000000000000011110101000010001111000100000000111110010000010011111000000000010000000100000001011110011000010100000101000001010000010000000000000000000000000000100000000000000110000000100000001000000010000011111000000000000000000000000000000010000000000000001000000010000000100000001001000010010000100011110000000000010000000100000001000100010010000111000001000100010000010000000000000000000000000001100000001000000010000000100000001000000010000001110000000000000000000000000000000000000000000110001001010101010010010100100101000001000000000000000000000000000000000000000001011110011000010100000101000001010000010000000000000000000000000000000000000000001111100100000101000001010000010011111000000000000000000000000000000000000000000101111001100001011000010101111001000000010000000100000000000000000000000000000000111101010000110100001100111101000000010000000100000001000000000000000000000000010011100011000100100000001000000010000000000000000000000000000000000000000000000011111001000000001111100000000101111110000000000000000000000000000100000001000001111100000100000001000000010010000011000000000000000000000000000000000000000000010000100100001001000010010000100011110100000000000000000000000000000000000000000100000101000001001000100001010000001000000000000000000000000000000000000000000001000001010000010100100101010101001000100000000000000000000000000000000000000000010000100010010000011000001001000100001000000000000000000000000000000000000000000100001001000010010001100011101000000010010000100011110000000000000000000000000001111111000000100000110000010000011111110000000000000000000000000000011100001000000001000001100000000100000010000000011100000000000000000000000000001000000010000000100000001000000010000000100000001000000000000000000000000000011100000000100000010000000011000001000000001000011100000000000000000000000000000011000101001001010001100000000000000000000000000000000000000000000000000</textarea><span class="button" id="loadBitmap">Load Character Set</span>
+		<textarea id="loadLayoutTextarea">                                                                                
+ Instructions                                                                   
+                                                                                
+ - Configure your serial port and its baud rate in terminal.php                 
+ - Start a local PHP server with "php -S 127.0.0.1:8000"                        
+ - Open a browser and go to "http://localhost:8000/"                            
+ - Resize your screen to make sure you see all three parts: character set,      
+   screen layout and terminal preview                                           
+ - Left click on a character grid to edit the character bitmap                  
+ - Right click on character to select it for assignment on screen layout        
+ - Left click on screen layout to place the selected character                  
+ - Right click on screen layout to unassign characters                          
+ - To make the VT220 display the custom character set, hit "Send Custom         
+   Character Set", "Switch To Custom Character Mode", "Send Screen Layout"      
+ - Use "Load Character Set" and "Load Screen Layout" to load previously saved   
+   character sets and screen layouts. Check the "saved" folder for example files
+ - You can create your own files, by simply copying the content in the          
+   text areas to according .txt files.                                          
+                                                               !"#$%&'()*+,-./0 
+                                                               123456789:;<=>?@ 
+                                                               ABCDEFGHIJKLMNOP 
+                                                               QRSTUVWXYZ[\]^_` 
+                                                               abcdefghijklmnop 
+                                                               qrstuvwxyz{|}~   
+                                                                                </textarea>
+		<span class="button" id="loadLayout">Load Screen Layout</span>
+		<div class="button" id="clear">Clear Character Set</div>
+	</div>
+	<div id="characterSet"></div>
+	<div id="screenLayout"></div>
+	<canvas id="terminalPreview" width="800" height="480"></canvas>
+</body>
+</html>
