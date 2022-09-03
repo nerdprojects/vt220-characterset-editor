@@ -18,3 +18,6 @@ This is a HTML/JS/PHP application, that allows to define a custom character sets
 - You can create your own files, by simply copying the content in the text areas to according .txt files.
 
 I tested it on macOS Catalina and Ubuntu with PHP 7 and Firefox.
+
+The png-to-vt220.py script can be used to generate the character set and the screen layout from a png.
+The png needs to be 8-bit grayscale and its size must be a multiple of 8 x 10 pixels.
